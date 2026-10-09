@@ -1,0 +1,15 @@
+{
+  "python-envs.defaultEnvManager": "ms-python.python:conda",
+  "python-envs.defaultPackageManager": "ms-python.python:conda",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell (Conda)": {
+      "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "args": [
+        "-NoExit",
+        "-Command",
+        ". 'E:\\Anaconda\\shell\\condabin\\conda-hook.ps1'; conda activate fyhpytorch"
+      ]
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "PowerShell (Conda)"
+}
