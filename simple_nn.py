@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 
 # 硬件加速
-torch.manual_seed(42)
+torch.manual_seed(40)
 
 
 # CUDA 可用就使用 GPU，否则使用 CPU
@@ -67,8 +67,8 @@ class simplemlp(nn.Module):
 model = simplemlp().to(device)
 loss_fn = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.1)
-
-for epoch in range(5):
+total_epoch=8
+for epoch in range(total_epoch):
     model.train()
 
     total_loss = 0.0
@@ -107,7 +107,7 @@ for epoch in range(5):
     accuracy = correct / total
 
     print(
-        f"第 {epoch + 1}/5 轮"
+        f"第 {epoch + 1}/{total_epoch} 轮"
         f" | 训练损失：{average_loss:.4f}"
         f" | 训练准确率：{accuracy:.2%}"
     )
