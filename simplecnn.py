@@ -81,9 +81,18 @@ def main():
         nn.MaxPool2d(kernel_size=2, stride=2),
         nn.Dropout2d(0.1),
 
+        #第三组  64×8×8 →64×4×4
+        nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+        nn.BatchNorm2d(64),
+        nn.ReLU(),
+        nn.MaxPool2d(kernel_size=2, stride=2),
+        nn.Dropout2d(0.1),
+
+
         # 展平为 2048 个特征，输出 10 个类别的原始分数
         nn.Flatten(),
-        nn.Linear(64 * 8 * 8, 10),
+        nn.Linear(64 * 4 * 4, 256), nn.ReLU(), nn.Dropout(0.1),
+        nn.Linear(256, 10)
     ).to(device)
     epoch = 30
     # 3. 损失函数与优化器与学习率调度
