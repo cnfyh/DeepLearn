@@ -19,8 +19,8 @@ else:
 device = torch.device(device_name)
 
 
-class ResidualBlock(nn.Module):  #残差块
-    """卷积分支与快捷分支相加，再经过 ReLU。"""
+class ResidualBlock(nn.Module):
+    """基础残差块：两层 3×3 卷积，与快捷分支相加后经过 ReLU。"""
 
     def __init__(self, input_channels, output_channels, stride=1):
         super().__init__()
@@ -28,40 +28,40 @@ class ResidualBlock(nn.Module):  #残差块
         # 卷积分支：两层 3×3 卷积，计算 F(x)
         self.conv_branch = nn.Sequential(
             nn.Conv2d(
-                in_channels=input_channels, 
+                in_channels=input_channels,
                 out_channels=output_channels,
-                kernel_size=3, 
-                stride=stride, 
-                padding=1, 
+                kernel_size=3,
+                stride=stride,
+                padding=1,
                 bias=False,
             ),
-            nn.BatchNorm2d(output_channels),
+            nn.BatchNorm2d(num_features=output_channels),
             nn.ReLU(),
             nn.Conv2d(
-                in_channels=output_channels, 
+                in_channels=output_channels,
                 out_channels=output_channels,
-                kernel_size=3, 
-                stride=1, 
-                padding=1, 
+                kernel_size=3,
+                stride=1,
+                padding=1,
                 bias=False,
             ),
-            nn.BatchNorm2d(output_channels),
+            nn.BatchNorm2d(num_features=output_channels),
         )
 
         # 快捷分支：形状相同时直接传递输入
         if input_channels == output_channels and stride == 1:
-            self.shortcut = nn.Identity()  #nn.Identity()表示输入什么就输出什么
+            self.shortcut = nn.Identity()  # 原样传递输入，保留恒等连接
         else:
             # 通道数或尺寸不同时，用 1×1 卷积对齐两条分支
             self.shortcut = nn.Sequential(
                 nn.Conv2d(
-                    input_channels, 
-                    output_channels,
-                    kernel_size=1, 
-                    stride=stride, 
+                    in_channels=input_channels,
+                    out_channels=output_channels,
+                    kernel_size=1,
+                    stride=stride,
                     bias=False,
                 ),
-                nn.BatchNorm2d(output_channels),
+                nn.BatchNorm2d(num_features=output_channels),
             )
 
         self.relu = nn.ReLU()
@@ -124,30 +124,41 @@ def main():
         pin_memory=device.type == "cuda",
     )
 
-    # 2. 网络结构：三个残差块，每个块后接池化和 Dropout
-    # 这是自定义的小型残差 CNN，每个残差块包含两层 3×3 卷积
+    # 2. 网络结构：初始卷积 → 三个残差阶段 → 全局平均池化 → 分类
+    # 每阶段包含两个基础残差块，仅在阶段切换时下采样
+    # 这是面向 CIFAR-10 的小型残差网络，通道数为 32、64、128
     model = nn.Sequential(
-        # 第一组：3×32×32 → 32×16×16（快捷分支使用 1×1 卷积）
-        ResidualBlock(3, 32),
-        nn.MaxPool2d(kernel_size=2, stride=2),
-        nn.Dropout2d(0.1),
-
-        # 第二组：32×16×16 → 64×8×8（快捷分支使用 1×1 卷积）
-        ResidualBlock(32, 64),
-        nn.MaxPool2d(kernel_size=2, stride=2),
-        nn.Dropout2d(0.1),
-
-        # 第三组：64×8×8 → 64×4×4（快捷分支直接传递输入）
-        ResidualBlock(64, 64),
-        nn.MaxPool2d(kernel_size=2, stride=2),
-        nn.Dropout2d(0.1),
-
-        # 展平为 64×4×4 = 1024 个特征，输出 10 个类别的原始分数
-        nn.Flatten(),
-        nn.Linear(64 * 4 * 4, 256),
+        # 初始卷积：3×32×32 → 32×32×32，先保持图片的空间尺寸
+        nn.Conv2d(
+            in_channels=3,
+            out_channels=32,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+            bias=False,
+        ),
+        nn.BatchNorm2d(num_features=32),
         nn.ReLU(),
+
+        # 阶段一：32×32×32 → 32×32×32，两块都使用恒等快捷分支
+        ResidualBlock(input_channels=32, output_channels=32, stride=1),
+        ResidualBlock(input_channels=32, output_channels=32, stride=1),
+
+        # 阶段二：32×32×32 → 64×16×16
+        # 首块两条分支都用 stride=2 下采样，第二块保持尺寸
+        ResidualBlock(input_channels=32, output_channels=64, stride=2),
+        ResidualBlock(input_channels=64, output_channels=64, stride=1),
+
+        # 阶段三：64×16×16 → 128×8×8
+        ResidualBlock(input_channels=64, output_channels=128, stride=2),
+        ResidualBlock(input_channels=128, output_channels=128, stride=1),
+
+        # 全局平均池化：128×8×8 → 128×1×1，每个通道汇总为一个值
+        nn.AdaptiveAvgPool2d(output_size=(1, 1)),
         nn.Dropout(0.1),
-        nn.Linear(256, 10),
+        # 展平为 128 个特征，输出 10 个类别的原始分数
+        nn.Flatten(start_dim=1),
+        nn.Linear(in_features=128, out_features=10),
     ).to(device)
 
     epoch = 30
