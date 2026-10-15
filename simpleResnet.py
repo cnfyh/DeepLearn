@@ -216,36 +216,30 @@ def main():
             f" | 训练准确率：{accuracy:.2%}",
             flush=True,
         )
-
-    # 5. 测试集
-    total_loss = 0.0
-    test_right_num = 0
-    total = 0
-    model.eval()
-
-    with torch.no_grad():
-        for x, y in test_loader:
-            x = x.to(device, non_blocking=True)
-            y = y.to(device, non_blocking=True)
-
-            logits = model(x)
-            loss = loss_fn(logits, y)
-            predicted = logits.argmax(dim=1)
-
-            batch_size = len(y)
-            total_loss += loss.item() * batch_size
-            test_right_num += (predicted == y).sum().item()
-            total += batch_size
-
-    average_loss = total_loss / total
-    accuracy = test_right_num / total
-    print("测试图片数量：", total)
-    print("正确识别数量：", test_right_num)
-    print(f"测试集损失：{average_loss:.4f}")
-    print(f"测试集的正确率：{accuracy:.2%}")
-
-    return 0
-
+        # 5. 测试集 每完成一轮就进行一次测试
+        total_loss = 0.0
+        test_right_num = 0
+        total = 0
+        model.eval()
+        
+        with torch.no_grad():
+            for x, y in test_loader:
+                x = x.to(device, non_blocking=True)
+                y = y.to(device, non_blocking=True)
+        
+                logits = model(x)
+                loss = loss_fn(logits, y)
+                predicted = logits.argmax(dim=1)
+        
+                batch_size = len(y)
+                total_loss += loss.item() * batch_size
+                test_right_num += (predicted == y).sum().item()
+                total += batch_size
+        
+            average_loss = total_loss / total
+            accuracy = test_right_num / total
+            print("正确识别数量：", test_right_num)
+            print(f"测试集的正确率：{accuracy:.2%}")
 
 if __name__ == "__main__":
     main()
